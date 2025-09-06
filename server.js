@@ -3,6 +3,20 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose();
+const { spawn } = require('child_process');
+
+// Slug generation arrays
+const animals = ['cat', 'dog', 'fox', 'bear', 'wolf', 'lion', 'tiger', 'eagle', 'hawk', 'owl', 'deer', 'rabbit', 'squirrel', 'otter', 'panda', 'koala', 'zebra', 'giraffe', 'elephant', 'dolphin', 'whale', 'shark', 'turtle', 'penguin', 'flamingo', 'parrot', 'butterfly', 'bee', 'dragonfly', 'spider'];
+
+const designObjects = ['circle', 'triangle', 'square', 'diamond', 'star', 'heart', 'cloud', 'lightning', 'rainbow', 'spiral', 'wave', 'arrow', 'cross', 'dot', 'line', 'curve', 'polygon', 'hexagon', 'octagon', 'oval', 'rectangle', 'rhombus', 'trapezoid', 'crescent', 'gear', 'flower', 'leaf', 'branch', 'tree', 'mountain'];
+
+function generateSlug() {
+    const animal = animals[Math.floor(Math.random() * animals.length)];
+    const design = designObjects[Math.floor(Math.random() * designObjects.length)];
+    const number = Math.floor(Math.random() * 1000) + 100; // 3-digit number
+    return `${animal}-${design}-${number}`;
+}
 
 const app = express();
 const PORT = 3000;
@@ -13,6 +27,70 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Initialize SQLite database
+const dbPath = path.join(__dirname, 'videos.db');
+const db = new sqlite3.Database(dbPath);
+
+// Create videos table if it doesn't exist
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS videos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        prompt TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL,
+        file_size INTEGER,
+        duration INTEGER
+    )`);
+});
+
+// Cleanup function
+function runCleanup() {
+    console.log('🧹 Running daily cleanup...');
+    const cleanupProcess = spawn('node', ['cleanup-expired.js'], {
+        cwd: __dirname,
+        stdio: 'inherit'
+    });
+
+    cleanupProcess.on('close', (code) => {
+        if (code === 0) {
+            console.log('✅ Daily cleanup completed successfully');
+        } else {
+            console.error(`❌ Daily cleanup failed with exit code ${code}`);
+        }
+    });
+
+    cleanupProcess.on('error', (err) => {
+        console.error('❌ Error running cleanup:', err.message);
+    });
+}
+
+// Schedule daily cleanup at 2 AM
+function scheduleCleanup() {
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(2, 0, 0, 0); // 2:00 AM
+    
+    // If it's already past 2 AM today, schedule for tomorrow
+    if (now > scheduledTime) {
+        scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+    
+    const timeUntilCleanup = scheduledTime.getTime() - now.getTime();
+    
+    console.log(`⏰ Next cleanup scheduled for: ${scheduledTime.toLocaleString()}`);
+    
+    setTimeout(() => {
+        runCleanup();
+        // Schedule the next cleanup for 24 hours later
+        setInterval(runCleanup, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+    }, timeUntilCleanup);
+}
+
+// Start cleanup scheduling
+scheduleCleanup();
 
 // Enable CORS for all routes
 app.use(cors());
@@ -54,10 +132,44 @@ app.post('/api/upload/video', upload.single('video'), (req, res) => {
 
         fs.writeFileSync(filePath, req.file.buffer);
 
+        // Generate unique slug
+        let slug;
+        let isUnique = false;
+        
+        // Keep generating until we get a unique slug
+        while (!isUnique) {
+            slug = generateSlug();
+            // Check if slug already exists
+            const existingSlug = db.prepare('SELECT slug FROM videos WHERE slug = ?').get(slug);
+            if (!existingSlug) {
+                isUnique = true;
+            }
+        }
+
+        // Calculate expiry date (14 days from now)
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 14);
+
+        // Save video record to database
+        db.run(
+            'INSERT INTO videos (filename, slug, prompt, file_size, expires_at) VALUES (?, ?, ?, ?, ?)',
+            [finalFilename, slug, promptText, req.file.buffer.length, expiryDate.toISOString()],
+            function(err) {
+                if (err) {
+                    console.error('Database error:', err);
+                } else {
+                    console.log(`Video record saved with ID: ${this.lastID}, slug: ${slug}`);
+                }
+            }
+        );
+
         res.json({
             success: true,
             message: 'Video recording saved successfully',
-            filename: finalFilename
+            filename: finalFilename,
+            slug: slug,
+            viewUrl: `/watch/${slug}`,
+            expiresAt: expiryDate.toISOString()
         });
     } catch (error) {
         console.error('Video upload error:', error);
@@ -161,6 +273,30 @@ app.get('/api/videos', (req, res) => {
         console.error('Error fetching videos:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch videos' });
     }
+});
+
+// Get video by slug
+app.get('/api/video/:slug', (req, res) => {
+    const slug = req.params.slug;
+    db.get(
+        'SELECT * FROM videos WHERE slug = ? AND expires_at > datetime("now")',
+        [slug],
+        (err, row) => {
+            if (err) {
+                console.error('Database error:', err);
+                res.status(500).json({ success: false, error: 'Database error' });
+            } else if (!row) {
+                res.status(404).json({ success: false, error: 'Video not found or expired' });
+            } else {
+                res.json({ success: true, video: row });
+            }
+        }
+    );
+});
+
+// Serve individual video watch page
+app.get('/watch/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'watch-video.html'));
 });
 
 app.listen(PORT, () => {

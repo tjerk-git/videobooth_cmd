@@ -266,8 +266,17 @@ function executeStep(step) {
             if (screenshotData) {
                 uploadScreenshot(screenshotData, currentPromptText);
             }
-            // Reload the video grid after a delay to ensure upload completes
+            
+            // Show video link after upload completes
             setTimeout(() => {
+                if (window.uploadedVideoInfo) {
+                    const videoLink = document.getElementById('video-link');
+                    const videoSlug = document.getElementById('video-slug');
+                    if (videoLink && videoSlug) {
+                        videoLink.href = window.uploadedVideoInfo.viewUrl;
+                        videoSlug.textContent = `Slug: ${window.uploadedVideoInfo.slug}`;
+                    }
+                }
                 loadVideoGrid();
             }, 2000);
             if (screenshotData && screenshotContainer) {
@@ -348,7 +357,13 @@ async function uploadMedia(promptText) {
         });
         const result = await response.json();
         if (result.success) {
-            console.log('Video uploaded successfully!');
+            console.log('Video uploaded successfully!', result);
+            // Store the video info globally to show on success screen
+            window.uploadedVideoInfo = {
+                slug: result.slug,
+                viewUrl: result.viewUrl,
+                expiresAt: result.expiresAt
+            };
         } else {
             console.error('Video upload failed:', result.message);
         }

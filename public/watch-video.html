@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Booth - Watch Video</title>
+    <style>
+        @font-face {
+            font-family: 'Switzer';
+            src: url('./fonts/Switzer-Regular.woff2') format('woff2'),
+                 url('./fonts/Switzer-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Switzer';
+            src: url('./fonts/Switzer-Bold.woff2') format('woff2'),
+                 url('./fonts/Switzer-Bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Switzer', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .video-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .video-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .video-slug {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 20px;
+            font-family: monospace;
+            background: rgba(0,0,0,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .video-wrapper {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .video-info {
+            margin-top: 20px;
+        }
+
+        .video-prompt {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .video-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .meta-item {
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .meta-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .meta-value {
+            color: white;
+        }
+
+        .nav-link {
+            margin-top: 30px;
+        }
+
+        .nav-link a {
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .nav-link a:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ff6b6b;
+            font-size: 1.2rem;
+        }
+
+        .error-title {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .expiry-warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .video-container {
+                padding: 20px;
+            }
+            
+            .video-title {
+                font-size: 1.5rem;
+            }
+            
+            .video-meta {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">
+            Loading video...
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <div class="error-title">😵 Oops!</div>
+            <div id="error-message">Video not found or expired</div>
+            <div class="nav-link">
+                <a href="/">🏠 Go Home</a>
+            </div>
+        </div>
+
+        <div id="video-content" class="video-container" style="display: none;">
+            <div class="video-title">🎬 Your Video</div>
+            <div id="video-slug" class="video-slug"></div>
+            
+            <div id="expiry-warning" class="expiry-warning" style="display: none;">
+                ⚠️ This video will expire soon!
+            </div>
+
+            <div class="video-wrapper">
+                <video id="main-video" controls preload="metadata">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="video-info">
+                <div id="video-prompt" class="video-prompt"></div>
+                
+                <div class="video-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">📅 Created</span>
+                        <span id="created-date" class="meta-value"></span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">⏰ Expires</span>
+                        <span id="expires-date" class="meta-value"></span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">📁 File Size</span>
+                        <span id="file-size" class="meta-value"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-link">
+                <a href="/">🎥 Record New Video</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadVideo() {
+            const slug = window.location.pathname.split('/').pop();
+            
+            try {
+                const response = await fetch(`/api/video/${slug}`);
+                const data = await response.json();
+                
+                const loadingEl = document.getElementById('loading');
+                const errorEl = document.getElementById('error');
+                const contentEl = document.getElementById('video-content');
+                
+                loadingEl.style.display = 'none';
+                
+                if (data.success && data.video) {
+                    const video = data.video;
+                    
+                    // Show content
+                    contentEl.style.display = 'block';
+                    
+                    // Set video details
+                    document.getElementById('video-slug').textContent = video.slug;
+                    document.getElementById('video-prompt').textContent = video.prompt || 'No prompt';
+                    document.getElementById('main-video').src = `/uploads/${video.filename}`;
+                    
+                    // Format dates
+                    const createdAt = new Date(video.created_at);
+                    const expiresAt = new Date(video.expires_at);
+                    
+                    document.getElementById('created-date').textContent = 
+                        createdAt.toLocaleDateString() + ' at ' + createdAt.toLocaleTimeString();
+                    document.getElementById('expires-date').textContent = 
+                        expiresAt.toLocaleDateString() + ' at ' + expiresAt.toLocaleTimeString();
+                    document.getElementById('file-size').textContent = formatFileSize(video.file_size);
+                    
+                    // Show expiry warning if expires within 24 hours
+                    const hoursUntilExpiry = (expiresAt - new Date()) / (1000 * 60 * 60);
+                    if (hoursUntilExpiry < 24) {
+                        const warningEl = document.getElementById('expiry-warning');
+                        warningEl.style.display = 'block';
+                        if (hoursUntilExpiry < 1) {
+                            warningEl.innerHTML = '⚠️ This video will expire in less than an hour!';
+                        } else {
+                            warningEl.innerHTML = `⚠️ This video will expire in ${Math.floor(hoursUntilExpiry)} hours!`;
+                        }
+                    }
+                    
+                    // Set page title
+                    document.title = `Video: ${video.slug}`;
+                    
+                } else {
+                    // Show error
+                    errorEl.style.display = 'block';
+                    document.getElementById('error-message').textContent = 
+                        data.error || 'Video not found or expired';
+                }
+                
+            } catch (error) {
+                console.error('Error loading video:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-message').textContent = 'Failed to load video';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Load video when page loads
+        document.addEventListener('DOMContentLoaded', loadVideo);
+    </script>
+</body>
+</html>
