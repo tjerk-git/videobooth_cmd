@@ -132,6 +132,15 @@ app.get('/', (req, res) => {
 
 
 app.post('/api/upload/video', upload.single('video'), (req, res) => {
+    console.log('=== VIDEO UPLOAD REQUEST ===');
+    console.log('Request received at:', new Date().toISOString());
+    console.log('File received:', !!req.file);
+    if (req.file) {
+        console.log('File size:', req.file.buffer.length);
+        console.log('File mimetype:', req.file.mimetype);
+    }
+    console.log('Request body:', req.body);
+    
     try {
         // Get the prompt text from the request body
         const promptText = req.body.prompt || 'no_prompt';
@@ -188,22 +197,42 @@ app.post('/api/upload/video', upload.single('video'), (req, res) => {
             const expiryDate = new Date();
             expiryDate.setDate(expiryDate.getDate() + 14);
 
+            // Debug: Database operation
+            console.log('=== DATABASE DEBUG ===');
+            console.log('About to insert into database:');
+            console.log('- Filename:', finalFilename);
+            console.log('- Slug:', uniqueSlug);
+            console.log('- Prompt:', promptText);
+            console.log('- File size:', req.file.buffer.length);
+            console.log('- Expires at:', expiryDate.toISOString());
+            
             // Save video record to database
             db.run(
                 'INSERT INTO videos (filename, slug, prompt, file_size, expires_at) VALUES (?, ?, ?, ?, ?)',
                 [finalFilename, uniqueSlug, promptText, req.file.buffer.length, expiryDate.toISOString()],
                 function(err) {
                     if (err) {
-                        console.error('Database error:', err);
+                        console.error('❌ Database INSERT error:', err);
+                        console.error('- Error code:', err.code);
+                        console.error('- Error message:', err.message);
                         return res.status(500).json({ success: false, error: 'Failed to save video record' });
                     } else {
-                        console.log(`Video record saved with ID: ${this.lastID}, slug: ${uniqueSlug}`);
+                        console.log(`✅ Video record saved with ID: ${this.lastID}, slug: ${uniqueSlug}`);
+                        
+                        // Debug: QR Code generation
+                        console.log('=== QR CODE DEBUG ===');
+                        console.log('Protocol:', req.protocol);
+                        console.log('Host:', req.get('host'));
+                        console.log('Headers:', req.headers);
+                        const fullUrl = `${req.protocol}://${req.get('host')}/watch/${uniqueSlug}`;
+                        console.log('Full URL for QR:', fullUrl);
                         
                         // Generate QR code for the full URL
-                        const fullUrl = `${req.protocol}://${req.get('host')}/watch/${uniqueSlug}`;
                         QRCode.toDataURL(fullUrl, { width: 200, margin: 2 }, (qrErr, qrDataUrl) => {
                             if (qrErr) {
-                                console.error('QR code generation error:', qrErr);
+                                console.error('❌ QR code generation error:', qrErr);
+                            } else {
+                                console.log('✅ QR code generated successfully');
                             }
                             
                             res.json({
@@ -352,6 +381,19 @@ app.get('/watch/:slug', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Uploads directory: ${uploadsDir}`);
+    
+    // Debug: Process user information
+    console.log('=== PROCESS DEBUG INFO ===');
+    console.log('Process UID:', process.getuid());
+    console.log('Process GID:', process.getgid());
+    try {
+        const os = require('os');
+        console.log('User info:', os.userInfo());
+    } catch (e) {
+        console.log('Could not get user info:', e.message);
+    }
+    console.log('Current working directory:', process.cwd());
+    console.log('========================');
 });
 
 process.on('SIGINT', () => {
