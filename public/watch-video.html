@@ -327,10 +327,13 @@
                     const videoElement = document.getElementById('main-video');
                     const videoLoadingEl = document.getElementById('video-loading');
                     
-                    // Show video loading indicator
-                    videoLoadingEl.style.display = 'block';
+                    // Add a timeout to hide loading indicator if video doesn't load within 10 seconds
+                    let loadingTimeout = setTimeout(() => {
+                        videoLoadingEl.style.display = 'none';
+                        console.log('Video loading timeout - hiding loading indicator');
+                    }, 10000);
                     
-                    // Add video loading event listeners
+                    // Add video loading event listeners first, then set the source
                     videoElement.addEventListener('loadstart', () => {
                         videoLoadingEl.style.display = 'block';
                         console.log('Video loading started');
@@ -338,7 +341,14 @@
                     
                     videoElement.addEventListener('canplay', () => {
                         videoLoadingEl.style.display = 'none';
+                        clearTimeout(loadingTimeout);
                         console.log('Video can start playing');
+                    });
+                    
+                    videoElement.addEventListener('loadeddata', () => {
+                        videoLoadingEl.style.display = 'none';
+                        clearTimeout(loadingTimeout);
+                        console.log('Video data loaded');
                     });
                     
                     videoElement.addEventListener('waiting', () => {
@@ -348,12 +358,16 @@
                     
                     videoElement.addEventListener('playing', () => {
                         videoLoadingEl.style.display = 'none';
+                        clearTimeout(loadingTimeout);
                         console.log('Video is playing');
                     });
                     
                     videoElement.addEventListener('error', (e) => {
                         videoLoadingEl.style.display = 'none';
+                        clearTimeout(loadingTimeout);
                         console.error('Video error:', e);
+                        // Show error message if video fails to load
+                        alert('Video failed to load: ' + (e.message || 'Unknown error'));
                     });
                     
                     // iOS-specific optimizations
@@ -380,6 +394,9 @@
                     } else {
                         videoElement.src = `/api/video/file/${video.filename}`;
                     }
+                    
+                    // Force the video to start loading
+                    videoElement.load();
                     
                     // Format dates
                     const createdAt = new Date(video.created_at);
