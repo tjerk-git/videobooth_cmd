@@ -304,13 +304,10 @@
 
         async function loadVideo() {
             const slug = window.location.pathname.split('/').pop();
-            alert('Debug: Starting to load video for slug: ' + slug);
             
             try {
                 const response = await fetch(`/api/video/${slug}`);
-                alert('Debug: Got response, status: ' + response.status);
                 const data = await response.json();
-                alert('Debug: Got data: ' + JSON.stringify(data));
                 
                 const loadingEl = document.getElementById('loading');
                 const errorEl = document.getElementById('error');
@@ -426,7 +423,6 @@
                 }
                 
             } catch (error) {
-                alert('Debug: Error loading video: ' + error.message);
                 console.error('Error loading video:', error);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error').style.display = 'block';
