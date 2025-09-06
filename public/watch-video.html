@@ -237,7 +237,7 @@
                     // Show content
                     contentEl.style.display = 'block';
                     
-                    document.getElementById('main-video').src = `/uploads/${video.filename}`;
+                    document.getElementById('main-video').src = `/api/video/file/${video.filename}`;
                     
                     // Format dates
                     const createdAt = new Date(video.created_at);
@@ -250,7 +250,7 @@
                     
                     // Set up download button
                     const downloadBtn = document.getElementById('download-btn');
-                    downloadBtn.href = `/uploads/${video.filename}`;
+                    downloadBtn.href = `/api/video/file/${video.filename}`;
                     downloadBtn.download = video.filename;
                     
                     // Set page title

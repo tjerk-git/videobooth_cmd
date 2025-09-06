@@ -289,10 +289,91 @@ app.get('/api/video/file/:filename', (req, res) => {
     const filename = req.params.filename;
     const filePath = path.join(uploadsDir, filename);
 
-    if (fs.existsSync(filePath)) {
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if this is a WebM file that needs conversion
+    const isWebMFile = filename.endsWith('.mp4') && filePath.includes('.mp4');
+    
+    // Read first few bytes to check if it's actually WebM content
+    try {
+        const buffer = fs.readFileSync(filePath, { start: 0, end: 11 });
+        const isActuallyWebM = buffer.toString('ascii', 0, 4) === 'RIFF' || 
+                              buffer.toString('hex', 0, 4) === '1a45dfa3'; // WebM signature
+
+        if (isActuallyWebM) {
+            console.log(`🔄 Converting WebM to MP4 for: ${filename}`);
+            
+            // Create converted filename
+            const convertedPath = filePath.replace('.mp4', '_converted.mp4');
+            
+            // Check if converted version already exists
+            if (fs.existsSync(convertedPath)) {
+                console.log('✅ Serving existing converted MP4');
+                return res.sendFile(convertedPath);
+            }
+            
+            // Convert WebM to MP4
+            const tempPath = filePath.replace('.mp4', '_temp.mp4');
+            const ffmpeg = spawn('ffmpeg', [
+                '-i', filePath,
+                '-c:v', 'libx264',
+                '-c:a', 'aac',
+                '-movflags', 'faststart',
+                '-y', // overwrite output file
+                tempPath
+            ]);
+
+            let conversionError = null;
+
+            ffmpeg.stderr.on('data', (data) => {
+                // FFmpeg outputs to stderr, this is normal
+                console.log(`FFmpeg: ${data.toString().trim()}`);
+            });
+
+            ffmpeg.on('close', (code) => {
+                if (code === 0 && !conversionError) {
+                    try {
+                        // Move temp file to converted file
+                        fs.renameSync(tempPath, convertedPath);
+                        console.log('✅ WebM converted to MP4 successfully');
+                        res.sendFile(convertedPath);
+                    } catch (moveError) {
+                        console.error('❌ Error moving converted file:', moveError);
+                        res.status(500).json({ error: 'Conversion completed but file move failed' });
+                    }
+                } else {
+                    console.error(`❌ FFmpeg conversion failed with exit code ${code}`);
+                    // Clean up temp file if it exists
+                    if (fs.existsSync(tempPath)) {
+                        fs.unlinkSync(tempPath);
+                    }
+                    // Serve original file as fallback
+                    res.sendFile(filePath);
+                }
+            });
+
+            ffmpeg.on('error', (err) => {
+                console.error('❌ FFmpeg error:', err);
+                conversionError = err;
+                // Clean up temp file if it exists
+                if (fs.existsSync(tempPath)) {
+                    fs.unlinkSync(tempPath);
+                }
+                // Serve original file as fallback
+                res.sendFile(filePath);
+            });
+            
+        } else {
+            // File is already MP4 or other format, serve as-is
+            res.sendFile(filePath);
+        }
+        
+    } catch (readError) {
+        console.error('Error reading file for format check:', readError);
+        // Fallback to serving the file as-is
         res.sendFile(filePath);
-    } else {
-        res.status(404).json({ error: 'File not found' });
     }
 });
 
