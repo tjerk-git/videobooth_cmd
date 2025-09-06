@@ -2,10 +2,41 @@
 
 const fs = require('fs');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
 
 const uploadsDir = path.join(__dirname, 'uploads');
+const dbPath = path.join(__dirname, 'videos.db');
 
-function clearUploads() {
+function clearDatabase() {
+    return new Promise((resolve, reject) => {
+        const db = new sqlite3.Database(dbPath, (err) => {
+            if (err) {
+                reject(new Error(`Failed to connect to database: ${err.message}`));
+                return;
+            }
+        });
+
+        db.run("DELETE FROM videos", (err) => {
+            if (err) {
+                db.close();
+                reject(new Error(`Failed to clear database: ${err.message}`));
+                return;
+            }
+
+            // Get count of remaining records
+            db.get("SELECT COUNT(*) as count FROM videos", (err, row) => {
+                db.close();
+                if (err) {
+                    reject(new Error(`Failed to verify database cleanup: ${err.message}`));
+                    return;
+                }
+                resolve(row.count);
+            });
+        });
+    });
+}
+
+async function clearUploads() {
     try {
         // Check if uploads directory exists
         if (!fs.existsSync(uploadsDir)) {
@@ -46,14 +77,32 @@ function clearUploads() {
             }
         });
 
-        console.log(`\nCleanup complete!`);
+        console.log(`\nFile cleanup complete!`);
         console.log(`Files deleted: ${deletedCount}`);
         if (errorCount > 0) {
-            console.log(`Errors encountered: ${errorCount}`);
+            console.log(`File deletion errors: ${errorCount}`);
         }
 
+        // Clear database records
+        console.log(`\nClearing database records...`);
+        try {
+            // Check if database exists
+            if (!fs.existsSync(dbPath)) {
+                console.log('Database file does not exist. Skipping database cleanup.');
+            } else {
+                const remainingRecords = await clearDatabase();
+                console.log(`Database cleared successfully. Remaining records: ${remainingRecords}`);
+            }
+        } catch (dbError) {
+            console.error('Error clearing database:', dbError.message);
+            console.log('File cleanup completed, but database cleanup failed.');
+            process.exit(1);
+        }
+
+        console.log(`\n✅ Complete cleanup finished!`);
+
     } catch (error) {
-        console.error('Error clearing uploads directory:', error.message);
+        console.error('Error during cleanup:', error.message);
         process.exit(1);
     }
 }
