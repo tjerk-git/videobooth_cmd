@@ -182,16 +182,12 @@
         </div>
 
         <div id="error" class="error" style="display: none;">
-            <div>😵 Oops!</div>
+            <div>Oops!</div>
             <div id="error-message">Video not found or expired</div>
-            <div style="margin-top: 30px;">
-                <a href="/" class="btn">🏠 Go Home</a>
-            </div>
         </div>
 
         <div id="video-content" class="video-container" style="display: none;">
-            <div class="video-title">Your Video</div>
-            <div id="video-slug" class="video-slug"></div>
+            <div class="video-title">Your visit to CMDLWD!</div>
 
             <div class="video-wrapper">
                 <video id="main-video" controls preload="metadata">
@@ -201,22 +197,22 @@
 
             <div class="video-meta">
                 <div class="meta-item">
-                    <span class="meta-label">📅 Created</span>
+                    <span class="meta-label">Created</span>
                     <span id="created-date" class="meta-value"></span>
                 </div>
                 <div class="meta-item">
-                    <span class="meta-label">⏰ Expires</span>
+                    <span class="meta-label">Expires</span>
                     <span id="expires-date" class="meta-value"></span>
                 </div>
             </div>
 
             <div class="buttons">
-                <a id="download-btn" href="#" class="btn" download>📥 Download Video</a>
-                <a href="/" class="btn">🎥 Record New Video</a>
+                <a id="download-btn" href="#" class="btn" download>Download</a>
             </div>
 
             <div class="thank-you">
                 Thank you for visiting CMD LWD.
+                Your video will be deleted after it expires, in about 2 weeks.
             </div>
         </div>
     </div>
@@ -241,8 +237,6 @@
                     // Show content
                     contentEl.style.display = 'block';
                     
-                    // Set video details
-                    document.getElementById('video-slug').textContent = video.slug;
                     document.getElementById('main-video').src = `/uploads/${video.filename}`;
                     
                     // Format dates

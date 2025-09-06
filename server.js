@@ -150,7 +150,7 @@ app.post('/api/upload/video', upload.single('video'), (req, res) => {
         // Add random string to ensure uniqueness like in screenshot endpoint
         const randomStr = Math.random().toString(36).substring(2, 8);
         // Construct the final filename including the sanitized prompt, timestamp and random string
-        const finalFilename = `${sanitizedPrompt}_${timestamp}_${randomStr}.webm`;
+        const finalFilename = `${sanitizedPrompt}_${timestamp}_${randomStr}.mp4`;
         const filePath = path.join(uploadsDir, finalFilename);
 
         fs.writeFileSync(filePath, req.file.buffer);

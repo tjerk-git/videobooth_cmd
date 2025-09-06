@@ -85,15 +85,15 @@ function startRecordingWithStream(stream) {
 
     // Find a supported MIME type
     let mimeType = '';
-    // Prioritize codecs that work well on Raspberry Pi
-    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+    // Prioritize MP4 for better compatibility
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
         mimeType = 'video/webm;codecs=vp8,opus';
     } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
         mimeType = 'video/webm;codecs=vp9,opus';
     } else if (MediaRecorder.isTypeSupported('video/webm')) {
         mimeType = 'video/webm';
-    } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-        mimeType = 'video/mp4';
     } else {
         mimeType = '';
     }
