@@ -381,7 +381,7 @@ async function uploadScreenshot(imageData, promptText) {
 
         if (result.success) {
             console.log('Screenshot uploaded successfully!');
-            loadImages();
+           
         } else {
             console.error('Screenshot upload failed:', result.message);
         }
@@ -579,33 +579,6 @@ function stopAllStreams() {
 
 window.addEventListener('beforeunload', stopAllStreams);
 
-function loadImages(){
-     console.log('loading images');
-     fetch('/api/images')
-     .then(response => response.json())
-     .then(data => {
-         let imagesContainer = document.getElementById('images_container');
-         imagesContainer.innerHTML = "";
-         if (data.images && data.images.length > 0) {
-             data.images.forEach((filename, index) => {
-                 const img = document.createElement('img');
-                 img.src = `/uploads/${filename}`;
-                 img.alt = filename;
-                 img.style.maxWidth = '300px';
-                 img.style.maxHeight = '225px';
-                 img.style.objectFit = 'cover';
-                 img.style.borderRadius = '8px';
-                 if (index === data.images.length - 1) {
-                     img.classList.add('new-image');
-                 }
-                 imagesContainer.appendChild(img);
-             });
-         }
-     })
-     .catch(err => {
-         document.getElementById('images_container').textContent = 'Failed to load images.';
-     });
-}
 
 function loadVideoGrid() {
     fetch('/api/videos')
