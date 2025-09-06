@@ -267,14 +267,36 @@ function executeStep(step) {
                 uploadScreenshot(screenshotData, currentPromptText);
             }
             
-            // Show video link after upload completes
+            // Show video link and QR code after upload completes
             setTimeout(() => {
                 if (window.uploadedVideoInfo) {
+                    const qrContainer = document.getElementById('qr-container');
+                    const qrCode = document.getElementById('qr-code');
                     const videoLink = document.getElementById('video-link');
                     const videoSlug = document.getElementById('video-slug');
-                    if (videoLink && videoSlug) {
-                        videoLink.href = window.uploadedVideoInfo.viewUrl;
-                        videoSlug.textContent = `Slug: ${window.uploadedVideoInfo.slug}`;
+                    
+                    if (qrCode && window.uploadedVideoInfo.qrCode) {
+                        const qrImg = document.createElement('img');
+                        qrImg.src = window.uploadedVideoInfo.qrCode;
+                        qrImg.style.width = '200px';
+                        qrImg.style.height = '200px';
+                        qrImg.style.margin = '0 auto';
+                        qrImg.style.display = 'block';
+                        qrImg.style.border = '3px solid #8363FF';
+                        qrImg.style.borderRadius = '10px';
+                        qrCode.appendChild(qrImg);
+                    }
+                    
+                    if (videoLink) {
+                        videoLink.textContent = `Scan to watch: ${window.uploadedVideoInfo.slug}`;
+                    }
+                    
+                    if (videoSlug) {
+                        videoSlug.textContent = window.uploadedVideoInfo.fullUrl || window.uploadedVideoInfo.viewUrl;
+                    }
+                    
+                    if (qrContainer) {
+                        qrContainer.style.display = 'block';
                     }
                 }
                 loadVideoGrid();
@@ -325,7 +347,7 @@ function executeStep(step) {
             }
             setTimeout(() => {
                 executeStep(0);
-            }, 5000);
+            }, 15000);
             break;
 
         default:
@@ -362,6 +384,8 @@ async function uploadMedia(promptText) {
             window.uploadedVideoInfo = {
                 slug: result.slug,
                 viewUrl: result.viewUrl,
+                fullUrl: result.fullUrl,
+                qrCode: result.qrCode,
                 expiresAt: result.expiresAt
             };
         } else {

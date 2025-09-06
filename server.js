@@ -5,6 +5,7 @@ const fs = require('fs');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const { spawn } = require('child_process');
+const QRCode = require('qrcode');
 
 // Slug generation arrays
 const animals = ['cat', 'dog', 'fox', 'bear', 'wolf', 'lion', 'tiger', 'eagle', 'hawk', 'owl', 'deer', 'rabbit', 'squirrel', 'otter', 'panda', 'koala', 'zebra', 'giraffe', 'elephant', 'dolphin', 'whale', 'shark', 'turtle', 'penguin', 'flamingo', 'parrot', 'butterfly', 'bee', 'dragonfly', 'spider'];
@@ -150,39 +151,75 @@ app.post('/api/upload/video', upload.single('video'), (req, res) => {
         let isUnique = false;
         
         // Keep generating until we get a unique slug
-        while (!isUnique) {
+        const checkUniqueSlug = (callback) => {
             slug = generateSlug();
             // Check if slug already exists
-            const existingSlug = db.prepare('SELECT slug FROM videos WHERE slug = ?').get(slug);
-            if (!existingSlug) {
-                isUnique = true;
-            }
-        }
-
-        // Calculate expiry date (14 days from now)
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 14);
-
-        // Save video record to database
-        db.run(
-            'INSERT INTO videos (filename, slug, prompt, file_size, expires_at) VALUES (?, ?, ?, ?, ?)',
-            [finalFilename, slug, promptText, req.file.buffer.length, expiryDate.toISOString()],
-            function(err) {
+            db.get('SELECT slug FROM videos WHERE slug = ?', [slug], (err, row) => {
                 if (err) {
-                    console.error('Database error:', err);
+                    console.error('Database error checking slug:', err);
+                    callback(err, false);
                 } else {
-                    console.log(`Video record saved with ID: ${this.lastID}, slug: ${slug}`);
+                    callback(null, !row); // true if no row found (unique)
                 }
-            }
-        );
+            });
+        };
+        
+        // Function to generate unique slug synchronously by using callback
+        const generateUniqueSlug = (callback) => {
+            checkUniqueSlug((err, unique) => {
+                if (err) {
+                    callback(err, null);
+                } else if (unique) {
+                    callback(null, slug);
+                } else {
+                    generateUniqueSlug(callback); // Try again
+                }
+            });
+        };
 
-        res.json({
-            success: true,
-            message: 'Video recording saved successfully',
-            filename: finalFilename,
-            slug: slug,
-            viewUrl: `/watch/${slug}`,
-            expiresAt: expiryDate.toISOString()
+        // Generate unique slug and save to database
+        generateUniqueSlug((err, uniqueSlug) => {
+            if (err) {
+                console.error('Error generating unique slug:', err);
+                return res.status(500).json({ success: false, error: 'Failed to generate unique identifier' });
+            }
+
+            // Calculate expiry date (14 days from now)
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 14);
+
+            // Save video record to database
+            db.run(
+                'INSERT INTO videos (filename, slug, prompt, file_size, expires_at) VALUES (?, ?, ?, ?, ?)',
+                [finalFilename, uniqueSlug, promptText, req.file.buffer.length, expiryDate.toISOString()],
+                function(err) {
+                    if (err) {
+                        console.error('Database error:', err);
+                        return res.status(500).json({ success: false, error: 'Failed to save video record' });
+                    } else {
+                        console.log(`Video record saved with ID: ${this.lastID}, slug: ${uniqueSlug}`);
+                        
+                        // Generate QR code for the full URL
+                        const fullUrl = `${req.protocol}://${req.get('host')}/watch/${uniqueSlug}`;
+                        QRCode.toDataURL(fullUrl, { width: 200, margin: 2 }, (qrErr, qrDataUrl) => {
+                            if (qrErr) {
+                                console.error('QR code generation error:', qrErr);
+                            }
+                            
+                            res.json({
+                                success: true,
+                                message: 'Video recording saved successfully',
+                                filename: finalFilename,
+                                slug: uniqueSlug,
+                                viewUrl: `/watch/${uniqueSlug}`,
+                                fullUrl: fullUrl,
+                                qrCode: qrDataUrl || null,
+                                expiresAt: expiryDate.toISOString()
+                            });
+                        });
+                    }
+                }
+            );
         });
     } catch (error) {
         console.error('Video upload error:', error);
@@ -219,7 +256,7 @@ app.post('/api/upload/screenshot', upload.single('screenshot'), (req, res) => {
 
 
 
-app.get('/api/video/:filename', (req, res) => {
+app.get('/api/video/file/:filename', (req, res) => {
     const filename = req.params.filename;
     const filePath = path.join(uploadsDir, filename);
 

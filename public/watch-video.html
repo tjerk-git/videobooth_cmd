@@ -3,193 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Booth - Watch Video</title>
+    <title>CMD VIDEOBOOTH - Watch Video</title>
     <style>
+        /* Font faces from main style.css */
         @font-face {
             font-family: 'Switzer';
-            src: url('./fonts/Switzer-Regular.woff2') format('woff2'),
-                 url('./fonts/Switzer-Regular.woff') format('woff');
-            font-weight: normal;
             font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('fonts/switzer-v4-latin-300.woff2') format('woff2');
         }
 
         @font-face {
             font-family: 'Switzer';
-            src: url('./fonts/Switzer-Bold.woff2') format('woff2'),
-                 url('./fonts/Switzer-Bold.woff') format('woff');
-            font-weight: bold;
             font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('fonts/switzer-v4-latin-regular.woff2') format('woff2');
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        @font-face {
+            font-family: 'Switzer';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('fonts/switzer-v4-latin-500.woff2') format('woff2');
+        }
+
+        @font-face {
+            font-family: 'Switzer';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('fonts/switzer-v4-latin-600.woff2') format('woff2');
         }
 
         body {
+            margin: 0;
+            padding: 0;
             font-family: 'Switzer', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #170c25;
+            color: #8363FF;
+            font-weight: 400;
             min-height: 100vh;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-
         .container {
-            max-width: 800px;
-            width: 100%;
-            padding: 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             text-align: center;
+            z-index: 10;
         }
 
         .video-container {
-            background: rgba(255,255,255,0.1);
+            background: rgb(59, 59, 59);
             border-radius: 20px;
-            padding: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            padding: 40px;
+            min-width: 600px;
         }
 
         .video-title {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 3rem;
+            font-weight: 400;
+            margin-bottom: 20px;
+            color: #8363FF;
         }
 
         .video-slug {
             font-size: 1.2rem;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 20px;
+            color: rgba(131, 99, 255, 0.8);
+            margin-bottom: 30px;
             font-family: monospace;
-            background: rgba(0,0,0,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            display: inline-block;
         }
 
         .video-wrapper {
-            position: relative;
-            margin: 20px 0;
-            border-radius: 15px;
+            margin: 30px 0;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
 
         .video-wrapper video {
             width: 100%;
             height: auto;
             display: block;
-        }
-
-        .video-info {
-            margin-top: 20px;
-        }
-
-        .video-prompt {
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #fff;
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         .video-meta {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
         }
 
         .meta-item {
-            background: rgba(255,255,255,0.05);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            color: rgba(131, 99, 255, 0.8);
+            font-size: 1rem;
         }
 
         .meta-label {
-            font-weight: bold;
+            font-weight: 600;
             display: block;
             margin-bottom: 5px;
-            color: rgba(255,255,255,0.8);
         }
 
         .meta-value {
-            color: white;
+            color: #8363FF;
         }
 
-        .nav-link {
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
             margin-top: 30px;
         }
 
-        .nav-link a {
-            color: white;
+        .btn {
+            color: #8363FF;
             text-decoration: none;
-            padding: 12px 24px;
-            background: rgba(255,255,255,0.15);
+            padding: 15px 30px;
+            background: rgba(131, 99, 255, 0.2);
             border-radius: 25px;
             font-weight: 500;
             transition: all 0.3s ease;
             display: inline-block;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(131, 99, 255, 0.3);
         }
 
-        .nav-link a:hover {
-            background: rgba(255,255,255,0.25);
+        .btn:hover {
+            background: rgba(131, 99, 255, 0.3);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
-        .loading {
-            text-align: center;
-            padding: 60px 20px;
+        .thank-you {
+            margin-top: 40px;
             font-size: 1.2rem;
+            color: rgba(131, 99, 255, 0.7);
+            font-style: italic;
+        }
+
+        .loading, .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #8363FF;
+            font-size: 2rem;
         }
 
         .error {
-            text-align: center;
-            padding: 60px 20px;
             color: #ff6b6b;
-            font-size: 1.2rem;
-        }
-
-        .error-title {
-            font-size: 2rem;
-            margin-bottom: 15px;
-        }
-
-        .expiry-warning {
-            background: rgba(255, 193, 7, 0.2);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
             .video-container {
-                padding: 20px;
+                min-width: auto;
+                width: 90vw;
+                padding: 30px 20px;
             }
             
             .video-title {
-                font-size: 1.5rem;
+                font-size: 2rem;
             }
             
-            .video-meta {
-                grid-template-columns: 1fr;
+            .buttons {
+                flex-direction: column;
+                gap: 15px;
             }
         }
     </style>
@@ -201,20 +182,16 @@
         </div>
 
         <div id="error" class="error" style="display: none;">
-            <div class="error-title">😵 Oops!</div>
+            <div>😵 Oops!</div>
             <div id="error-message">Video not found or expired</div>
-            <div class="nav-link">
-                <a href="/">🏠 Go Home</a>
+            <div style="margin-top: 30px;">
+                <a href="/" class="btn">🏠 Go Home</a>
             </div>
         </div>
 
         <div id="video-content" class="video-container" style="display: none;">
-            <div class="video-title">🎬 Your Video</div>
+            <div class="video-title">Your Video</div>
             <div id="video-slug" class="video-slug"></div>
-            
-            <div id="expiry-warning" class="expiry-warning" style="display: none;">
-                ⚠️ This video will expire soon!
-            </div>
 
             <div class="video-wrapper">
                 <video id="main-video" controls preload="metadata">
@@ -222,27 +199,24 @@
                 </video>
             </div>
 
-            <div class="video-info">
-                <div id="video-prompt" class="video-prompt"></div>
-                
-                <div class="video-meta">
-                    <div class="meta-item">
-                        <span class="meta-label">📅 Created</span>
-                        <span id="created-date" class="meta-value"></span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">⏰ Expires</span>
-                        <span id="expires-date" class="meta-value"></span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">📁 File Size</span>
-                        <span id="file-size" class="meta-value"></span>
-                    </div>
+            <div class="video-meta">
+                <div class="meta-item">
+                    <span class="meta-label">📅 Created</span>
+                    <span id="created-date" class="meta-value"></span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">⏰ Expires</span>
+                    <span id="expires-date" class="meta-value"></span>
                 </div>
             </div>
 
-            <div class="nav-link">
-                <a href="/">🎥 Record New Video</a>
+            <div class="buttons">
+                <a id="download-btn" href="#" class="btn" download>📥 Download Video</a>
+                <a href="/" class="btn">🎥 Record New Video</a>
+            </div>
+
+            <div class="thank-you">
+                Thank you for visiting CMD LWD.
             </div>
         </div>
     </div>
@@ -269,7 +243,6 @@
                     
                     // Set video details
                     document.getElementById('video-slug').textContent = video.slug;
-                    document.getElementById('video-prompt').textContent = video.prompt || 'No prompt';
                     document.getElementById('main-video').src = `/uploads/${video.filename}`;
                     
                     // Format dates
@@ -280,22 +253,14 @@
                         createdAt.toLocaleDateString() + ' at ' + createdAt.toLocaleTimeString();
                     document.getElementById('expires-date').textContent = 
                         expiresAt.toLocaleDateString() + ' at ' + expiresAt.toLocaleTimeString();
-                    document.getElementById('file-size').textContent = formatFileSize(video.file_size);
                     
-                    // Show expiry warning if expires within 24 hours
-                    const hoursUntilExpiry = (expiresAt - new Date()) / (1000 * 60 * 60);
-                    if (hoursUntilExpiry < 24) {
-                        const warningEl = document.getElementById('expiry-warning');
-                        warningEl.style.display = 'block';
-                        if (hoursUntilExpiry < 1) {
-                            warningEl.innerHTML = '⚠️ This video will expire in less than an hour!';
-                        } else {
-                            warningEl.innerHTML = `⚠️ This video will expire in ${Math.floor(hoursUntilExpiry)} hours!`;
-                        }
-                    }
+                    // Set up download button
+                    const downloadBtn = document.getElementById('download-btn');
+                    downloadBtn.href = `/uploads/${video.filename}`;
+                    downloadBtn.download = video.filename;
                     
                     // Set page title
-                    document.title = `Video: ${video.slug}`;
+                    document.title = `CMD VIDEOBOOTH - ${video.slug}`;
                     
                 } else {
                     // Show error
@@ -312,16 +277,10 @@
             }
         }
 
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
         // Load video when page loads
-        document.addEventListener('DOMContentLoaded', loadVideo);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVideo();
+        });
     </script>
 </body>
 </html>

@@ -5,19 +5,18 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "concurrently \"nodemon server.js\" \"wait-on http://localhost:3000 && node scripts/open-browser.js http://localhost:3000\"",
+    "dev": "node server.js",
     "cleanup": "node cleanup-expired.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10",
-    "concurrently": "^9.0.1",
-    "wait-on": "^7.2.0"
+    "nodemon": "^3.1.10"
   },
   "keywords": [
     "video",
