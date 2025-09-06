@@ -28,22 +28,35 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Initialize SQLite database
+// Initialize SQLite database with better error handling
 const dbPath = path.join(__dirname, 'videos.db');
-const db = new sqlite3.Database(dbPath);
 
-// Create videos table if it doesn't exist
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS videos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        filename TEXT NOT NULL,
-        slug TEXT UNIQUE NOT NULL,
-        prompt TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME NOT NULL,
-        file_size INTEGER,
-        duration INTEGER
-    )`);
+// Check if database file exists
+if (!fs.existsSync(dbPath)) {
+    console.log('⚠️  Database not found. Please run: node init-db.js');
+    process.exit(1);
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('❌ Failed to connect to database:', err.message);
+        console.log('💡 Try running: node init-db.js');
+        process.exit(1);
+    }
+    console.log('✅ Connected to SQLite database');
+    
+    // Verify table exists
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='videos'", (err, row) => {
+        if (err) {
+            console.error('❌ Database error:', err.message);
+            process.exit(1);
+        }
+        if (!row) {
+            console.error('❌ Videos table not found. Please run: node init-db.js');
+            process.exit(1);
+        }
+        console.log('✅ Videos table verified');
+    });
 });
 
 // Cleanup function
