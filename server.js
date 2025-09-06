@@ -293,6 +293,10 @@ app.get('/api/video/file/:filename', (req, res) => {
         return res.status(404).json({ error: 'File not found' });
     }
 
+    // Check User-Agent for iOS Safari
+    const userAgent = req.get('User-Agent') || '';
+    const isIOSSafari = /iPhone|iPad|iPod/.test(userAgent) && /Safari/.test(userAgent) && !/Chrome|CriOS|FxiOS/.test(userAgent);
+    
     // Check if this is a WebM file that needs conversion
     const isWebMFile = filename.endsWith('.webm');
     
@@ -311,19 +315,32 @@ app.get('/api/video/file/:filename', (req, res) => {
             // Check if converted version already exists
             if (fs.existsSync(convertedPath)) {
                 console.log('✅ Serving existing converted MP4');
+                // Set iOS-friendly headers
+                if (isIOSSafari) {
+                    res.set({
+                        'Accept-Ranges': 'bytes',
+                        'Content-Type': 'video/mp4'
+                    });
+                }
                 return res.sendFile(convertedPath);
             }
             
-            // Convert WebM to MP4
+            // Convert WebM to MP4 with iOS-optimized settings
             const tempPath = filePath.replace('.webm', '_temp.mp4');
-            const ffmpeg = spawn('ffmpeg', [
+            const ffmpegArgs = [
                 '-i', filePath,
                 '-c:v', 'libx264',
+                '-profile:v', 'baseline', // iOS-compatible profile
+                '-level', '3.0',
                 '-c:a', 'aac',
-                '-movflags', 'faststart',
+                '-ar', '44100', // iOS-compatible sample rate
+                '-movflags', 'faststart', // Enable progressive streaming
+                '-pix_fmt', 'yuv420p', // iOS-compatible pixel format
                 '-y', // overwrite output file
                 tempPath
-            ]);
+            ];
+            
+            const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
             let conversionError = null;
 
@@ -338,6 +355,14 @@ app.get('/api/video/file/:filename', (req, res) => {
                         // Move temp file to converted file
                         fs.renameSync(tempPath, convertedPath);
                         console.log('✅ WebM converted to MP4 successfully');
+                        
+                        // Set iOS-friendly headers
+                        if (isIOSSafari) {
+                            res.set({
+                                'Accept-Ranges': 'bytes',
+                                'Content-Type': 'video/mp4'
+                            });
+                        }
                         res.sendFile(convertedPath);
                     } catch (moveError) {
                         console.error('❌ Error moving converted file:', moveError);
@@ -367,6 +392,12 @@ app.get('/api/video/file/:filename', (req, res) => {
             
         } else {
             // File is already MP4 or other format, serve as-is
+            if (isIOSSafari) {
+                res.set({
+                    'Accept-Ranges': 'bytes',
+                    'Content-Type': 'video/mp4'
+                });
+            }
             res.sendFile(filePath);
         }
         
@@ -452,6 +483,91 @@ app.get('/api/video/:slug', (req, res) => {
             }
         }
     );
+});
+
+// HLS streaming endpoint for iOS compatibility
+app.get('/api/video/hls/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(uploadsDir, filename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Check if HLS version exists
+    const hlsDir = path.join(uploadsDir, 'hls', filename.replace(/\.[^/.]+$/, ''));
+    const manifestPath = path.join(hlsDir, 'playlist.m3u8');
+    
+    if (fs.existsSync(manifestPath)) {
+        console.log('📺 Serving existing HLS manifest');
+        res.set('Content-Type', 'application/vnd.apple.mpegurl');
+        return res.sendFile(manifestPath);
+    }
+    
+    // Generate HLS on demand
+    console.log('🔄 Generating HLS for iOS Safari:', filename);
+    
+    // Ensure HLS directory exists
+    if (!fs.existsSync(hlsDir)) {
+        fs.mkdirSync(hlsDir, { recursive: true });
+    }
+    
+    // Convert to HLS format
+    const ffmpegArgs = [
+        '-i', filePath,
+        '-c:v', 'libx264',
+        '-profile:v', 'baseline',
+        '-level', '3.0',
+        '-c:a', 'aac',
+        '-ar', '44100',
+        '-pix_fmt', 'yuv420p',
+        '-f', 'hls',
+        '-hls_time', '10',
+        '-hls_list_size', '0',
+        '-hls_segment_filename', path.join(hlsDir, 'segment_%03d.ts'),
+        manifestPath
+    ];
+    
+    const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+    
+    ffmpeg.stderr.on('data', (data) => {
+        console.log(`HLS FFmpeg: ${data.toString().trim()}`);
+    });
+    
+    ffmpeg.on('close', (code) => {
+        if (code === 0) {
+            console.log('✅ HLS conversion successful');
+            res.set('Content-Type', 'application/vnd.apple.mpegurl');
+            res.sendFile(manifestPath);
+        } else {
+            console.error(`❌ HLS conversion failed with code ${code}`);
+            res.status(500).json({ error: 'HLS conversion failed' });
+        }
+    });
+    
+    ffmpeg.on('error', (err) => {
+        console.error('❌ HLS FFmpeg error:', err);
+        res.status(500).json({ error: 'HLS generation error' });
+    });
+});
+
+// Serve HLS segments
+app.get('/api/video/hls/:filename/:segment', (req, res) => {
+    const filename = req.params.filename;
+    const segment = req.params.segment;
+    const hlsDir = path.join(uploadsDir, 'hls', filename.replace(/\.[^/.]+$/, ''));
+    const segmentPath = path.join(hlsDir, segment);
+    
+    if (fs.existsSync(segmentPath)) {
+        if (segment.endsWith('.ts')) {
+            res.set('Content-Type', 'video/MP2T');
+        } else if (segment.endsWith('.m3u8')) {
+            res.set('Content-Type', 'application/vnd.apple.mpegurl');
+        }
+        res.sendFile(segmentPath);
+    } else {
+        res.status(404).json({ error: 'Segment not found' });
+    }
 });
 
 // Serve individual video watch page
