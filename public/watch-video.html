@@ -189,8 +189,8 @@
         <div id="video-content" class="video-container" style="display: none;">
             <div class="video-title">Your visit to CMDLWD!</div>
 
-            <div class="video-wrapper" style="position: relative;">
-                <video id="main-video" controls preload="metadata" crossorigin="anonymous">
+            <div class="video-wrapper">
+                <video id="main-video" controls preload="metadata">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -218,25 +218,6 @@
     </div>
 
     <script>
-        // iOS Safari detection
-        function isIOSSafari() {
-            const userAgent = navigator.userAgent.toLowerCase();
-            const isIOS = /ipad|iphone|ipod/.test(userAgent);
-            const isSafari = /safari/.test(userAgent) && !/chrome|crios|fxios/.test(userAgent);
-            return isIOS && isSafari;
-        }
-
-        // Check HLS support
-        function supportsHLS() {
-            const video = document.createElement('video');
-            return video.canPlayType('application/vnd.apple.mpegurl') !== '';
-        }
-
-        // Check MSE support
-        function supportsMSE() {
-            return typeof MediaSource !== 'undefined';
-        }
-
         async function loadVideo() {
             const slug = window.location.pathname.split('/').pop();
             
@@ -256,7 +237,7 @@
                     // Show content
                     contentEl.style.display = 'block';
                     
-                    await setupVideoPlayback(video);
+                    document.getElementById('main-video').src = `/api/video/file/${video.filename}`;
                     
                     // Format dates
                     const createdAt = new Date(video.created_at);
@@ -288,111 +269,6 @@
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('error-message').textContent = 'Failed to load video';
             }
-        }
-
-        async function setupVideoPlayback(video) {
-            const videoElement = document.getElementById('main-video');
-            const isIOS = isIOSSafari();
-            
-            // Clear any existing sources
-            videoElement.innerHTML = '';
-            
-            if (isIOS) {
-                console.log('iOS Safari detected, optimizing video setup');
-                
-                // iOS Safari specific attributes
-                videoElement.setAttribute('playsinline', 'true');
-                videoElement.setAttribute('webkit-playsinline', 'true');
-                videoElement.setAttribute('preload', 'metadata');
-                
-                // Remove autoplay and muted for iOS (due to autoplay restrictions)
-                videoElement.removeAttribute('autoplay');
-                videoElement.muted = false;
-                
-                // Check if HLS version exists
-                try {
-                    const hlsResponse = await fetch(`/api/video/hls/${video.filename}`, { method: 'HEAD' });
-                    if (hlsResponse.ok && supportsHLS()) {
-                        console.log('Using HLS for iOS Safari');
-                        videoElement.src = `/api/video/hls/${video.filename}`;
-                        return;
-                    }
-                } catch (e) {
-                    console.log('HLS not available, falling back to MP4');
-                }
-            }
-            
-            // Create multiple source elements for better compatibility
-            const sources = [
-                { src: `/api/video/file/${video.filename}`, type: 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"' },
-                { src: `/api/video/file/${video.filename}`, type: 'video/mp4' },
-                { src: `/api/video/file/${video.filename}`, type: 'video/webm; codecs="vp8, vorbis"' },
-                { src: `/api/video/file/${video.filename}`, type: 'video/webm' }
-            ];
-            
-            sources.forEach(source => {
-                const sourceElement = document.createElement('source');
-                sourceElement.src = source.src;
-                sourceElement.type = source.type;
-                videoElement.appendChild(sourceElement);
-            });
-            
-            // Add error handling for video loading
-            videoElement.addEventListener('error', function(e) {
-                console.error('Video playback error:', e);
-                const errorTarget = e.target.error;
-                if (errorTarget) {
-                    console.error('Video error code:', errorTarget.code, 'message:', errorTarget.message);
-                }
-            });
-            
-            // Add load event to handle iOS Safari quirks
-            videoElement.addEventListener('loadedmetadata', function() {
-                console.log('Video metadata loaded successfully');
-                if (isIOS) {
-                    // For iOS, we need user interaction to play
-                    const playButton = createPlayButton();
-                    videoElement.parentNode.appendChild(playButton);
-                }
-            });
-            
-            // Fallback: if all sources fail, show error message
-            videoElement.addEventListener('loadstart', function() {
-                console.log('Video loading started');
-            });
-        }
-        
-        function createPlayButton() {
-            const button = document.createElement('button');
-            button.textContent = '▶ Tap to Play';
-            button.style.cssText = `
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(131, 99, 255, 0.9);
-                color: white;
-                border: none;
-                padding: 15px 30px;
-                border-radius: 25px;
-                font-size: 18px;
-                font-weight: 500;
-                cursor: pointer;
-                z-index: 10;
-                font-family: 'Switzer', sans-serif;
-            `;
-            
-            button.addEventListener('click', function() {
-                const video = document.getElementById('main-video');
-                video.play().then(() => {
-                    button.remove();
-                }).catch(e => {
-                    console.error('Play failed:', e);
-                    button.textContent = 'Play failed - Try downloading';
-                });
-            });
-            
-            return button;
         }
 
         // Load video when page loads

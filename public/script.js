@@ -83,37 +83,19 @@ function startRecordingWithStream(stream) {
     recordedChunks = [];
     recordingStopped = false;
 
-    // Detect iOS Safari
-    const isIOSSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
-    
-    // Find a supported MIME type with iOS Safari preference
+    // Find a supported MIME type
     let mimeType = '';
-    if (isIOSSafari) {
-        // iOS Safari has limited codec support, prefer these formats
-        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
-            mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
-        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-            mimeType = 'video/mp4';
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
-            mimeType = 'video/webm;codecs=vp8,opus';
-        } else {
-            mimeType = 'video/webm';
-        }
+    // Prioritize MP4 for better compatibility
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        mimeType = 'video/webm;codecs=vp8,opus';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+        mimeType = 'video/webm;codecs=vp9,opus';
+    } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        mimeType = 'video/webm';
     } else {
-        // Prioritize MP4 for better compatibility on other browsers
-        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
-            mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
-        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-            mimeType = 'video/mp4';
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-            mimeType = 'video/webm;codecs=vp9,opus';
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
-            mimeType = 'video/webm;codecs=vp8,opus';
-        } else if (MediaRecorder.isTypeSupported('video/webm')) {
-            mimeType = 'video/webm';
-        } else {
-            mimeType = '';
-        }
+        mimeType = '';
     }
 
     try {
@@ -519,40 +501,21 @@ function startRecording() {
         videoDiv.appendChild(videoElem);
     }
 
-    // Detect iOS Safari for constraints
-    const isIOSSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
-    
-    // iOS Safari optimized constraints
-    const videoConstraints = isIOSSafari ? {
-        width: { ideal: 640, max: 1280 },
-        height: { ideal: 480, max: 720 },
-        frameRate: { ideal: 25, max: 30 },
-        aspectRatio: { ideal: 4/3 } // iOS Safari prefers 4:3 for compatibility
-    } : {
-        width: { ideal: 1280, max: 1920 },
-        height: { ideal: 720, max: 1080 },
-        frameRate: { ideal: 30, max: 30 },
-        aspectRatio: { ideal: 16/9 }
-    };
-    
-    const audioConstraints = isIOSSafari ? {
-        sampleRate: { ideal: 44100, max: 44100 }, // iOS Safari prefers 44.1kHz
-        channelCount: { ideal: 1, max: 1 },
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-    } : {
-        sampleRate: { ideal: 48000, max: 48000 },
-        channelCount: { ideal: 1, max: 1 },
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-    };
-
     // Get user media and start recording (video and audio)
     navigator.mediaDevices.getUserMedia({ 
-        video: videoConstraints, 
-        audio: audioConstraints
+        video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 30 },
+            aspectRatio: { ideal: 16/9 }
+        }, 
+        audio: {
+            sampleRate: { ideal: 48000, max: 48000 },
+            channelCount: { ideal: 1, max: 1 },
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+        }
     })
         .then(function(stream) {
             console.log('Got media stream:', stream);
@@ -606,16 +569,16 @@ function startRecording() {
         .catch(function(err) {
             console.error('Error accessing media devices:', err);
             
-            // Fallback to lower quality settings
+            // Fallback to lower quality settings for Raspberry Pi
             console.log('Trying fallback with lower quality settings...');
             navigator.mediaDevices.getUserMedia({ 
                 video: {
-                    width: { ideal: 320, max: 640 },
-                    height: { ideal: 240, max: 480 },
-                    frameRate: { ideal: 15, max: 25 }
+                    width: { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 25, max: 25 }
                 }, 
                 audio: {
-                    sampleRate: { ideal: 22050, max: 44100 },
+                    sampleRate: { ideal: 44100, max: 44100 },
                     channelCount: { ideal: 1, max: 1 },
                     echoCancellation: true,
                     noiseSuppression: true,
