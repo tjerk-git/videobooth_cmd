@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>CMD VIDEOBOOTH - Watch Video</title>
     <style>
         /* Font faces from main style.css */
@@ -46,6 +49,10 @@
             color: #8363FF;
             font-weight: 400;
             min-height: 100vh;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         .container {
             position: absolute;
@@ -88,6 +95,8 @@
             height: auto;
             display: block;
             border-radius: 12px;
+            -webkit-playsinline: true;
+            playsinline: true;
         }
 
         .video-meta {
@@ -157,6 +166,19 @@
             color: #ff6b6b;
         }
 
+        .video-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #8363FF;
+            font-size: 1.2rem;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 20;
+        }
+
         @media (max-width: 768px) {
             .video-container {
                 min-width: auto;
@@ -171,6 +193,56 @@
             .buttons {
                 flex-direction: column;
                 gap: 15px;
+            }
+            
+            .video-meta {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+        
+        /* iPhone specific optimizations */
+        @media only screen and (max-width: 480px) {
+            .video-container {
+                width: 95vw;
+                padding: 20px 15px;
+                margin: 10px;
+            }
+            
+            .video-title {
+                font-size: 1.5rem;
+                margin-bottom: 15px;
+            }
+            
+            .video-slug {
+                font-size: 1rem;
+                margin-bottom: 20px;
+            }
+            
+            .video-wrapper {
+                margin: 20px 0;
+            }
+            
+            .btn {
+                padding: 12px 24px;
+                font-size: 0.9rem;
+            }
+            
+            .thank-you {
+                font-size: 1rem;
+                margin-top: 30px;
+            }
+        }
+        
+        /* iOS Safari specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .video-wrapper video {
+                -webkit-playsinline: true;
+                webkit-playsinline: true;
+            }
+            
+            .container {
+                -webkit-overflow-scrolling: touch;
             }
         }
     </style>
@@ -190,7 +262,10 @@
             <div class="video-title">Your visit to CMDLWD!</div>
 
             <div class="video-wrapper">
-                <video id="main-video" controls preload="metadata">
+                <div id="video-loading" class="video-loading" style="display: none;">
+                    Loading video...
+                </div>
+                <video id="main-video" controls preload="metadata" playsinline webkit-playsinline>
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -218,6 +293,15 @@
     </div>
 
     <script>
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
+        function isSafari() {
+            return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        }
+
         async function loadVideo() {
             const slug = window.location.pathname.split('/').pop();
             
@@ -237,7 +321,62 @@
                     // Show content
                     contentEl.style.display = 'block';
                     
-                    document.getElementById('main-video').src = `/api/video/file/${video.filename}`;
+                    const videoElement = document.getElementById('main-video');
+                    const videoLoadingEl = document.getElementById('video-loading');
+                    
+                    // Show video loading indicator
+                    videoLoadingEl.style.display = 'block';
+                    
+                    // Add video loading event listeners
+                    videoElement.addEventListener('loadstart', () => {
+                        videoLoadingEl.style.display = 'block';
+                        console.log('Video loading started');
+                    });
+                    
+                    videoElement.addEventListener('canplay', () => {
+                        videoLoadingEl.style.display = 'none';
+                        console.log('Video can start playing');
+                    });
+                    
+                    videoElement.addEventListener('waiting', () => {
+                        videoLoadingEl.style.display = 'block';
+                        console.log('Video is buffering');
+                    });
+                    
+                    videoElement.addEventListener('playing', () => {
+                        videoLoadingEl.style.display = 'none';
+                        console.log('Video is playing');
+                    });
+                    
+                    videoElement.addEventListener('error', (e) => {
+                        videoLoadingEl.style.display = 'none';
+                        console.error('Video error:', e);
+                    });
+                    
+                    // iOS-specific optimizations
+                    if (isIOS()) {
+                        videoElement.setAttribute('playsinline', '');
+                        videoElement.setAttribute('webkit-playsinline', '');
+                        
+                        // Try MP4 version first for better iOS compatibility
+                        const filename = video.filename;
+                        const mp4Filename = filename.replace(/\.(webm|mkv|avi)$/i, '.mp4');
+                        
+                        // Check if MP4 version exists
+                        try {
+                            const mp4Response = await fetch(`/api/video/file/${mp4Filename}`, { method: 'HEAD' });
+                            if (mp4Response.ok) {
+                                videoElement.src = `/api/video/file/${mp4Filename}`;
+                            } else {
+                                videoElement.src = `/api/video/file/${video.filename}`;
+                            }
+                        } catch (e) {
+                            videoElement.src = `/api/video/file/${video.filename}`;
+                        }
+                        
+                    } else {
+                        videoElement.src = `/api/video/file/${video.filename}`;
+                    }
                     
                     // Format dates
                     const createdAt = new Date(video.created_at);
@@ -250,8 +389,11 @@
                     
                     // Set up download button
                     const downloadBtn = document.getElementById('download-btn');
-                    downloadBtn.href = `/api/video/file/${video.filename}`;
-                    downloadBtn.download = video.filename;
+                    const downloadFilename = isIOS() && video.filename.includes('.webm') ? 
+                        video.filename.replace('.webm', '.mp4') : video.filename;
+                    
+                    downloadBtn.href = `/api/video/file/${downloadFilename}`;
+                    downloadBtn.download = downloadFilename;
                     
                     // Set page title
                     document.title = `CMD VIDEOBOOTH - ${video.slug}`;
