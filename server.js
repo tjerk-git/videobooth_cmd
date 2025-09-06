@@ -294,7 +294,7 @@ app.get('/api/video/file/:filename', (req, res) => {
     }
 
     // Check if this is a WebM file that needs conversion
-    const isWebMFile = filename.endsWith('.mp4') && filePath.includes('.mp4');
+    const isWebMFile = filename.endsWith('.webm');
     
     // Read first few bytes to check if it's actually WebM content
     try {
@@ -302,11 +302,11 @@ app.get('/api/video/file/:filename', (req, res) => {
         const isActuallyWebM = buffer.toString('ascii', 0, 4) === 'RIFF' || 
                               buffer.toString('hex', 0, 4) === '1a45dfa3'; // WebM signature
 
-        if (isActuallyWebM) {
+        if (isWebMFile || isActuallyWebM) {
             console.log(`🔄 Converting WebM to MP4 for: ${filename}`);
             
             // Create converted filename
-            const convertedPath = filePath.replace('.mp4', '_converted.mp4');
+            const convertedPath = filePath.replace('.webm', '_converted.mp4');
             
             // Check if converted version already exists
             if (fs.existsSync(convertedPath)) {
@@ -315,7 +315,7 @@ app.get('/api/video/file/:filename', (req, res) => {
             }
             
             // Convert WebM to MP4
-            const tempPath = filePath.replace('.mp4', '_temp.mp4');
+            const tempPath = filePath.replace('.webm', '_temp.mp4');
             const ffmpeg = spawn('ffmpeg', [
                 '-i', filePath,
                 '-c:v', 'libx264',
