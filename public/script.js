@@ -7,6 +7,7 @@ const videoDiv = document.getElementById('video');
 const cameraPreview = document.getElementById('camera_preview');
 const screenshotContainer = document.getElementById('screenshot_container');
 const bgElem = document.querySelector('.bg');
+const progressBar = document.getElementById('progress-bar');
 
 let currentSection = 0;
 
@@ -180,7 +181,7 @@ function handleShortEnterPress() {
     executeStep(currentSection);
 }
 
-function executeStep(step) {
+async function executeStep(step) {
     if (step >= sections.length) {
         step = 0;
         stopAllStreams();
@@ -207,6 +208,12 @@ function executeStep(step) {
             if (timerElementSection1) timerElementSection1.textContent = '';
             if (recordTimerElement) recordTimerElement.textContent = '';
             if (screenshotContainer) screenshotContainer.innerHTML = '';
+            
+            // Hide progress bar on initial screen
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            
             screenshotData = null;
             currentPromptText = '';
             stopAllStreams();
@@ -236,13 +243,27 @@ function executeStep(step) {
             }
             
             let countdown = 5;
+            const totalCountdown = 5;
             timerElementSection1.style.display = "flex";
             timerElementSection1.textContent =  countdown;
             if (window.countdownInterval) {
                 clearInterval(window.countdownInterval);
             }
+            
+            // Update progress bar for countdown (100% at start, 0% when recording starts)
+            if (progressBar) {
+                progressBar.style.width = '100%';
+            }
+            
             window.countdownInterval = setInterval(() => {
                 countdown--;
+                
+                // Update progress bar - decrease from 100% to 0%
+                if (progressBar) {
+                    const progress = (countdown / totalCountdown) * 100;
+                    progressBar.style.width = Math.max(0, progress) + '%';
+                }
+                
                 if (countdown > 0) {
                     timerElementSection1.textContent = countdown;
                 } else if (countdown === 0) {
@@ -262,18 +283,19 @@ function executeStep(step) {
             console.log("Executing Step 2: Success Screen");
             stopAllStreams();
             enterDisabled = false;
-            uploadMedia(currentPromptText);
-            if (screenshotData) {
-                uploadScreenshot(screenshotData, currentPromptText);
-            }
             
-            // Show video link and QR code after upload completes
-            setTimeout(() => {
+            // Wait for upload to complete before showing success screen
+            try {
+                await uploadMedia(currentPromptText);
+                if (screenshotData) {
+                    await uploadScreenshot(screenshotData, currentPromptText);
+                }
+                
+                // Show video link and QR code after upload completes
                 if (window.uploadedVideoInfo) {
                     const qrContainer = document.getElementById('qr-container');
                     const qrCode = document.getElementById('qr-code');
-                    const videoLink = document.getElementById('video-link');
-                    const videoSlug = document.getElementById('video-slug');
+
                     
                     if (qrCode && window.uploadedVideoInfo.qrCode) {
                         const qrImg = document.createElement('img');
@@ -286,21 +308,17 @@ function executeStep(step) {
                         qrImg.style.borderRadius = '10px';
                         qrCode.appendChild(qrImg);
                     }
-                    
-                    if (videoLink) {
-                        videoLink.textContent = `Scan to watch: ${window.uploadedVideoInfo.slug}`;
-                    }
-                    
-                    if (videoSlug) {
-                        videoSlug.textContent = window.uploadedVideoInfo.fullUrl || window.uploadedVideoInfo.viewUrl;
-                    }
-                    
+                                        
                     if (qrContainer) {
                         qrContainer.style.display = 'block';
                     }
                 }
                 loadVideoGrid();
-            }, 2000);
+            } catch (error) {
+                console.error('Upload failed:', error);
+                // Still show the success screen even if upload failed
+                loadVideoGrid();
+            }
             if (screenshotData && screenshotContainer) {
                 screenshotContainer.innerHTML = '';
                 const img = document.createElement('img');
@@ -345,6 +363,24 @@ function executeStep(step) {
                     origin: { x: 0.5, y: 1 }
                 });
             }
+            // Start progress bar countdown for QR code display (15 seconds)
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                let qrTimeRemaining = 15;
+                
+                const qrInterval = setInterval(() => {
+                    qrTimeRemaining--;
+                    const progress = (qrTimeRemaining / 15) * 100;
+                    if (progressBar) {
+                        progressBar.style.width = Math.max(0, progress) + '%';
+                    }
+                    
+                    if (qrTimeRemaining <= 0) {
+                        clearInterval(qrInterval);
+                    }
+                }, 1000);
+            }
+            
             setTimeout(() => {
                 executeStep(0);
             }, 15000);
@@ -573,8 +609,21 @@ function startRecordingTimer() {
     if (window.recordInterval) {
         clearInterval(window.recordInterval);
     }
+    
+    // Set progress bar to start at 100% for recording
+    if (progressBar) {
+        progressBar.style.width = '100%';
+    }
+    
     window.recordInterval = setInterval(() => {
         recordCountdown--;
+        
+        // Update progress bar during recording - decrease from 100% to 0%
+        if (progressBar) {
+            const progress = (recordCountdown / RECORDING_TIME_SECONDS) * 100;
+            progressBar.style.width = Math.max(0, progress) + '%';
+        }
+        
         if (recordCountdown > 0) {
             recordTimerElement.textContent = recordCountdown;
         } else {
