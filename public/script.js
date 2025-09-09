@@ -23,7 +23,6 @@ const prompts = [
 let mediaRecorder;
 let recordedChunks = [];
 let currentStream;
-let enterDisabled = false;
 let screenshotData = null;
 let currentPromptText = '';
 let recordingStopped = false; // Prevent double stop
@@ -169,14 +168,14 @@ function startRecordingWithStream(stream) {
 }
 
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Enter' && !enterDisabled) {
+    if (event.key === 'Enter' && currentSection === 0) {
         event.preventDefault();
         handleShortEnterPress();
     }
 });
 
 function handleShortEnterPress() {
-    if (enterDisabled) return;
+    if (currentSection !== 0) return;
     currentSection++;
     executeStep(currentSection);
 }
@@ -185,7 +184,6 @@ async function executeStep(step) {
     if (step >= sections.length) {
         step = 0;
         stopAllStreams();
-        enterDisabled = false;
     }
     currentSection = step;
     updateSectionDisplay();
@@ -219,7 +217,6 @@ async function executeStep(step) {
             stopAllStreams();
             stopCameraPreview();
             startCameraPreview();
-            enterDisabled = false;
             break;
 
         case 1:
@@ -229,7 +226,6 @@ async function executeStep(step) {
             intro.style.display = 'none';
             stopCameraPreview();
             console.log("Executing Step 1: Displaying Prompt & Starting Countdown");
-            enterDisabled = true;
             
             if (USE_PROMPTS) {
                 let randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
@@ -270,7 +266,6 @@ async function executeStep(step) {
                     timerElementSection1.textContent = "go!";
        
                     startRecording();
-                    enterDisabled = true;
                 } else if (countdown === -1) {
                     timerElementSection1.textContent = "";
                     timerElementSection1.style.display = "none";
@@ -282,7 +277,6 @@ async function executeStep(step) {
         case 2:
             console.log("Executing Step 2: Success Screen");
             stopAllStreams();
-            enterDisabled = false;
             
             // Wait for upload to complete before showing success screen
             try {
@@ -298,6 +292,7 @@ async function executeStep(step) {
 
                     
                     if (qrCode && window.uploadedVideoInfo.qrCode) {
+                        qrCode.innerHTML = '';
                         const qrImg = document.createElement('img');
                         qrImg.src = window.uploadedVideoInfo.qrCode;
                         qrImg.style.width = '200px';
